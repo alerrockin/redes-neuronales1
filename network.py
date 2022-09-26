@@ -19,12 +19,15 @@ import random
 # Librerías de terceros
 import numpy as np
 
+#a = valor neuronas
+#b = valor umbrales
+#w = valor pesos
 
 class Network(object):
 
-    def __init__(self, sizes):
+    def __init__(self, num_neuronas):
 
-        """La lista ``sizes`` contiene el número de neuronas en las
+        """La lista ``num_neuronas`` contiene el número de neuronas en las
         respectivas capas de la red.  Por ejemplo, si la lista
         fuera [2, 3, 1] entonces sería una red de tres capas, con la
         primera capa contiene 2 neuronas, la segunda capa 3 neuronas
@@ -35,23 +38,23 @@ class Network(object):
         no estableceremos ningún sesgo para esas neuronas, ya que los sesgos sólo se
         sólo se utilizan en el cálculo de las salidas de las capas posteriores."""
         
-        self.num_layers = len(sizes)
-        self.sizes = sizes
-        self.biases = [np.random.randn(y, 1) for y in sizes[1:]]
-        self.weights = [np.random.randn(y, x)
-                        for x, y in zip(sizes[:-1], sizes[1:])]
+        self.num_capas = len(num_neuronas)
+        self.num_neuronas = num_neuronas
+        self.umbrales = [np.random.randn(y, 1) for y in num_neuronas[1:]]
+        self.pesos = [np.random.randn(y, x)
+                        for x, y in zip(num_neuronas[:-1], num_neuronas[1:])]
 
-    def feedforward(self, a):
+    def propagacion_hacia_adelante(self, a):
         """Devuelve la salida de la red si ``a`` es la entrada."""
-        for b, w in zip(self.biases, self.weights):
-            a = sigmoid(np.dot(w, a)+b)
+        for b, w in zip(self.umbrales, self.pesos):
+            a = sigmoide(np.dot(w, a)+b)
         return a
 
-    def SGD(self, training_data, epochs, mini_batch_size, eta,
-            test_data=None):
+    def SGD(self, datos_entrenamiento, epocas, capacidad_lote, tasa_aprendizaje,
+            datos_de_prueba=None):
 
         """Entrenar la red neuronal mediante el descenso de
-        gradiente estocástico.  Los ``datos_de_entrenamiento`` son una lista de tuplas
+        gradiente estocástico.  Los ``datos_entrenamiento`` son una lista de tuplas
         ``(x, y)`` que representan las entradas de entrenamiento y las salidas
         deseadas.  Los demás parámetros no opcionales son
         no opcionales se explican por sí mismos.  Si se proporciona ``datos_de_prueba``, la red
@@ -59,101 +62,101 @@ class Network(object):
         y se imprimirá el progreso parcial.  Esto es útil para
         seguimiento del progreso, pero ralentiza las cosas sustancialmente."""
 
-        if test_data:
-            n_test = len(test_data)
-        n = len(training_data)
-        for j in xrange(epochs):
-            random.shuffle(training_data)
-            mini_batches = [
-                training_data[k:k+mini_batch_size]
-                for k in xrange(0, n, mini_batch_size)]
-            for mini_batch in mini_batches:
-                self.update_mini_batch(mini_batch, eta)
-            if test_data:
-                print ("Epoch {0}: {1} / {2}").format(
-                    j, self.evaluate(test_data), n_test)
+        if datos_de_prueba:
+            n_test = len(datos_de_prueba)
+        n = len(datos_entrenamiento)
+        for j in xrange(epocas):
+            random.shuffle(datos_entrenamiento)
+            lotes = [
+                datos_entrenamiento[k:k+capacidad_lote]
+                for k in xrange(0, n, capacidad_lote)]
+            for lote in lotes:
+                self.actualizar_lote(lote, tasa_aprendizaje)
+            if datos_de_prueba:
+                print ("Epoca {0}: {1} / {2}").format(
+                    j, self.evaluate(datos_de_prueba), n_test)
             else:
-                print ("Epoch {0} complete").format(j)
+                print ("Epoca {0} completada").format(j)
 
-    def update_mini_batch(self, mini_batch, eta):
+    def actualizar_lote(self, lote, tasa_aprendizaje):
 
         """Actualizar los pesos y sesgos de la red aplicando
         el descenso de gradiente utilizando la retropropagación a un único mini lote.
-        El ``mini_batch`` es una lista de tuplas ``(x, y)``, y ``eta``
+        El ``lote`` es una lista de tuplas ``(x, y)``, y ``tasa_aprendizaje``
         es la tasa de aprendizaje."""
 
-        nabla_b = [np.zeros(b.shape) for b in self.biases]
-        nabla_w = [np.zeros(w.shape) for w in self.weights]
-        for x, y in mini_batch:
-            delta_nabla_b, delta_nabla_w = self.backprop(x, y)
+        nabla_b = [np.zeros(b.shape) for b in self.umbrales]
+        nabla_w = [np.zeros(w.shape) for w in self.pesos]
+        for x, y in lote:
+            delta_nabla_b, delta_nabla_w = self.retropropagacion(x, y)
             nabla_b = [nb+dnb for nb, dnb in zip(nabla_b, delta_nabla_b)]
             nabla_w = [nw+dnw for nw, dnw in zip(nabla_w, delta_nabla_w)]
-        self.weights = [w-(eta/len(mini_batch))*nw
-                        for w, nw in zip(self.weights, nabla_w)]
-        self.biases = [b-(eta/len(mini_batch))*nb
-                       for b, nb in zip(self.biases, nabla_b)]
+        self.pesos = [w-(tasa_aprendizaje/len(lote))*nw
+                        for w, nw in zip(self.pesos, nabla_w)]
+        self.umbrales = [b-(tasa_aprendizaje/len(lote))*nb
+                       for b, nb in zip(self.umbrales, nabla_b)]
 
-    def backprop(self, x, y):
+    def retropropagacion(self, x, y):
 
         """Devuelve una tupla ``(nabla_b, nabla_w)`` que representa el
         gradiente de la función de coste C_x.  ``nabla_b`` y
         ``nabla_w`` son listas de matrices numpy capa por capa, similares
-        a ``self.biases`` y ``self.weights``."""
-        nabla_b = [np.zeros(b.shape) for b in self.biases]
-        nabla_w = [np.zeros(w.shape) for w in self.weights]
+        a ``self.umbrales`` y ``self.pesos``."""
+        nabla_b = [np.zeros(b.shape) for b in self.umbrales]
+        nabla_w = [np.zeros(w.shape) for w in self.pesos]
         # propagacion hacia adelante
-        activation = x
-        activations = [x]  # lista para almacenar todas las activaciones, capa por capa
+        activacion = x
+        activaciones = [x]  # lista para almacenar todas las activaciones, capa por capa
         zs = []  # lista para almacenar todos los vectores z, capa por capa
-        for b, w in zip(self.biases, self.weights):
-            z = np.dot(w, activation)+b
+        for b, w in zip(self.umbrales, self.pesos):
+            z = np.dot(w, activacion)+b
             zs.append(z)
-            activation = sigmoid(z)
-            activations.append(activation)
-        # paso atrás
-        delta = self.cost_derivative(activations[-1], y) * \
-            sigmoid_prime(zs[-1])
+            activacion = sigmoide(z)
+            activaciones.append(activacion)
+        # propagación hacia atras
+        delta = self.cost_derivative(activaciones[-1], y) * \
+            sigmoide_derivada(zs[-1])
         nabla_b[-1] = delta
-        nabla_w[-1] = np.dot(delta, activations[-2].transpose())
+        nabla_w[-1] = np.dot(delta, activaciones[-2].transponer())
         # Obsérvese que la variable l en el bucle de abajo se usa un poco.Aquí,
         # l = 1 significa la última capa de neuronas, l = 2 es la
         # la penúltima capa, y así sucesivamente.  Es una renumeración del
         # esquema del libro, utilizado aquí para aprovechar el hecho
         # que Python puede usar índices negativos en las listas.
-        for l in xrange(2, self.num_layers):
+        for l in xrange(2, self.num_capas):
             z = zs[-l]
-            sp = sigmoid_prime(z)
-            delta = np.dot(self.weights[-l+1].transpose(), delta) * sp
+            sp = sigmoide_derivada(z)
+            delta = np.dot(self.pesos[-l+1].transponer(), delta) * sp
             nabla_b[-l] = delta
-            nabla_w[-l] = np.dot(delta, activations[-l-1].transpose())
+            nabla_w[-l] = np.dot(delta, activaciones[-l-1].transponer())
         return (nabla_b, nabla_w)
 
-    def evaluate(self, test_data):
+    def evaluate(self, datos_de_prueba):
 
         """Devuelve el número de entradas de prueba para las que la red neural
         produce el resultado correcto. Tenga en cuenta que la salida de la red neuronal
         se supone que la salida de la red neuronal es el índice de la neurona
         neurona de la última capa tenga la mayor activación."""
-        test_results = [(np.argmax(self.feedforward(x)), y)
-                        for (x, y) in test_data]
-        return sum(int(x == y) for (x, y) in test_results)
+        resultados_prueba = [(np.argmax(self.propagacion_hacia_adelante(x)), y)
+                        for (x, y) in datos_de_prueba]
+        return sum(int(x == y) for (x, y) in resultados_prueba)
 
-    def cost_derivative(self, output_activations, y):
+    def cost_derivative(self, salida_activaciones, y):
 
         """Devuelve el vector de derivadas parciales \partial C_x /
         \partial a para las activaciones de salida."""
-        return (output_activations-y)
+        return (salida_activaciones-y)
 
 #### Funciones varias
 
 
-def sigmoid(z):
+def sigmoide(z):
     """La función sigmoidea."""
     return 1.0/(1.0+np.exp(-z))
 
 
-def sigmoid_prime(z):
+def sigmoide_derivada(z):
     """Derivada de la función sigmoidea."""
-    return sigmoid(z)*(1-sigmoid(z))
+    return sigmoide(z)*(1-sigmoide(z))
 
 #tomado de https://github.com/mnielsen/neural-networks-and-deep-learning/blob/master/src/network.py
