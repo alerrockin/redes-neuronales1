@@ -89,8 +89,7 @@ def cargar_datos_tupla():
 def resultado_vector(j):
     """Devuelve un vector unitario de 10 dimensiones con un 1,0 en la posición j
     posición y ceros en el resto.  Esto se utiliza para convertir un dígito
-    (0...9) en la correspondiente salida deseada de la red neuronal
-    de la red neuronal."""
+    (0...9) en la correspondiente salida deseada de la red neuronal."""
     e = np.zeros((10, 1))
     e[j] = 1.0
     return e

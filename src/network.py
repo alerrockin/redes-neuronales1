@@ -50,6 +50,7 @@ class Network(object):
             a = sigmoide(np.dot(w, a)+b)
         return a
 
+    #descenso de gradiente estocástico
     def SGD(self, datos_de_entrenamiento, epocas, capacidad_lote, tasa_aprendizaje,
             datos_de_prueba=None):
 
